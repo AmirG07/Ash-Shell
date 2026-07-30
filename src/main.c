@@ -10,6 +10,7 @@
 
 /* --- Custom Headers --- */
 #include "../include/builtins.h"
+#include "../include/help.h"
 #include "../include/colors.h"
 
 #define ASH_RL_BUFSIZE 1024
@@ -93,7 +94,6 @@ int ash_launch(char **args)
     if(pid == 0){
 	if(execvp(args[0], args) == -1) {
 	    perror("ash");
-	
 	}
 	exit(EXIT_FAILURE);
     }

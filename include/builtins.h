@@ -2,7 +2,7 @@
 
 #define BUILTINS_H
 
-void print_dir(char **args, struct dirent *de, struct stat *st, int max_width);
+void print_dir(char **args, char **filenames, int count, int max_width);
 
 int ash_cd(char **args);
 int ash_ls(char **args);

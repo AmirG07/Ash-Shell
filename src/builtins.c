@@ -9,8 +9,10 @@
 
 /* --- Source Headers */
 #include "../include/builtins.h"
+#include "../include/help.h"
 #include "../include/colors.h"
 
+#define ASH_FILES_BUFSIZE 16
 
 char *builtin_str[] = {
     "cd",
@@ -36,65 +38,84 @@ int ash_cd(char **args)
     if(args[1] == NULL) {
 	fprintf(stderr, "ash -> expected argument to \"cd\"\n");
     }
+    else if(strcmp(args[1], "-h") == 0 || strcmp(args[1], "--help") == 0) {
+	print_help(args);
+    }
     else {
 	if(chdir(args[1]) != 0) {
 	    perror("ash");
 	}
     }
+
     return 1;
 }
 
-void print_dir(char **args, struct dirent *de, struct stat *st, int max_width)
+void print_dir(char **args, char **filenames, int count, int max_width)
 {
-    if(strcmp((*de).d_name, ".") != 0 && strcmp((*de).d_name, "..") != 0) {
-	if(stat((*de).d_name, st) == 0) {
-	    if(args[1] != NULL && strcmp(args[1], "-l") == 0) {
-		if (S_ISREG((*st).st_mode))
-		    printf("-");
-		else if (S_ISDIR((*st).st_mode))
-		    printf("d");
-		else if (S_ISLNK((*st).st_mode))
-		    printf("l");
-		else if (S_ISCHR((*st).st_mode))
-		    printf("c");
-		else if (S_ISBLK((*st).st_mode))
-		    printf("b");
-		else if (S_ISFIFO((*st).st_mode))
-		    printf("p");
-		else if (S_ISSOCK((*st).st_mode))
-		    printf("s");
+    for(int i = 0; i < count; i++) {
+	struct stat st;
+	
+	if(strcmp(filenames[i], ".") != 0 && strcmp(filenames[i], "..") != 0) {
+	    if(stat(filenames[i], &st) == 0) {
+		if(args[1] != NULL && (strchr(args[1], 'l') && args[1][0] == '-')) {
+		    if (S_ISREG(st.st_mode))
+			printf("-");
+		    else if (S_ISDIR(st.st_mode))
+			printf("d");
+		    else if (S_ISLNK(st.st_mode))
+			printf("l");
+		    else if (S_ISCHR(st.st_mode))
+			printf("c");
+		    else if (S_ISBLK(st.st_mode))
+			printf("b");
+		    else if (S_ISFIFO(st.st_mode))
+			printf("p");
+		    else if (S_ISSOCK(st.st_mode))
+			printf("s");
 
-		printf(((*st).st_mode & S_IRUSR) ? "r" : "-");
-		printf(((*st).st_mode & S_IWUSR) ? "w" : "-");
-		printf(((*st).st_mode & S_IXUSR) ? "x" : "-");
+		    printf((st.st_mode & S_IRUSR) ? "r" : "-");
+		    printf((st.st_mode & S_IWUSR) ? "w" : "-");
+		    printf((st.st_mode & S_IXUSR) ? "x" : "-");
 
-		printf(((*st).st_mode & S_IRGRP) ? "r" : "-");
-		printf(((*st).st_mode & S_IWGRP) ? "w" : "-");
-		printf(((*st).st_mode & S_IXGRP) ? "x" : "-");
+		    printf((st.st_mode & S_IRGRP) ? "r" : "-");
+		    printf((st.st_mode & S_IWGRP) ? "w" : "-");
+		    printf((st.st_mode & S_IXGRP) ? "x" : "-");
 
-		printf(((*st).st_mode & S_IRGRP) ? "r" : "-");
-		printf(((*st).st_mode & S_IWGRP) ? "w" : "-");
-		printf(((*st).st_mode & S_IXGRP) ? "x" : "-");
+		    printf((st.st_mode & S_IRGRP) ? "r" : "-");
+		    printf((st.st_mode & S_IWGRP) ? "w" : "-");
+		    printf((st.st_mode & S_IXGRP) ? "x" : "-");
 
-		printf(ASH_GREEN " %-*s " ASH_RESET, max_width, (*de).d_name);
+		    printf(ASH_GREEN " %-*s " ASH_RESET, max_width, filenames[i]);
 
-		struct tm *tm = localtime(&(*st).st_mtim.tv_sec);
-		char time_buffer[64];
-		strftime(time_buffer, sizeof(time_buffer), "%b %d %H:%M", tm);
-		printf(ASH_YELLOW " %s\n" ASH_RESET, time_buffer);
+		    struct tm *tm = localtime(&st.st_mtim.tv_sec);
+		    char time_buffer[64];
+		    strftime(time_buffer, sizeof(time_buffer), "%b %d %H:%M", tm);
+		    printf(ASH_YELLOW " %s\n" ASH_RESET, time_buffer);
 
+		}
+		else {
+		    printf(ASH_GREEN "%s\n" ASH_RESET, filenames[i]);	
+		}	
 	    }
-	    else {
-		printf(ASH_GREEN "%s\n" ASH_RESET, (*de).d_name);	
-	    }	
-	}
-    }   
+	}   
+	free(filenames[i]);
+    }
 }
 
 int ash_ls(char **args)
 {
+    if(args[1] != NULL && (strcmp(args[1], "-h") == 0 || strcmp(args[1], "--help") == 0)) {
+	print_help(args);
+	return 1;
+    }
+    
+    int buffer_size = ASH_FILES_BUFSIZE;
+    int normal_count = 0, dot_count = 0;
+    char **normal_filenames = malloc(sizeof(char*) * buffer_size);
+    char **dot_filenames = malloc(sizeof(char*) * buffer_size);
+    
+    int max_width = 0;
     struct dirent *de;
-
     DIR *dr = opendir(".");
 
     if(dr == NULL) {
@@ -102,28 +123,32 @@ int ash_ls(char **args)
 	exit(EXIT_FAILURE);
     }
 
-    int max_width = 0;
     while((de = readdir(dr)) != NULL) {
 	if(strlen((*de).d_name) > max_width)
 	    max_width = strlen((*de).d_name);
+	
+	if(normal_count == buffer_size)	    
+	    normal_filenames = realloc(normal_filenames, sizeof(char*) * (buffer_size * 2));
+	if(dot_count == buffer_size)   
+	    dot_filenames = realloc(dot_filenames, sizeof(char*) * (buffer_size * 2));
+
+
+	if((*de).d_name[0] == '.')
+	    dot_filenames[dot_count++] = strdup((*de).d_name); 
+	else
+	    normal_filenames[normal_count++] = strdup((*de).d_name);    
     }
-
-    rewinddir(dr);
-
-    while((de = readdir(dr)) != NULL) {
-	struct stat *st = malloc(sizeof(struct stat));
-
-	if(!st) {
-	    fprintf(stderr, "ash-> allocation error");
-	    exit(EXIT_FAILURE);
-	}
-
-	print_dir(args, de, st, max_width);
-
-	free(st);
-    }
-
     closedir(dr);
+    
+    if(args[1] != NULL && strchr(args[1], 'a')) {
+	print_dir(args, dot_filenames, dot_count, max_width);
+	
+    }
+    print_dir(args, normal_filenames, normal_count, max_width);
+    
+
+    free(normal_filenames);
+    free(dot_filenames);
 
     return 1;
 }
