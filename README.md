@@ -16,3 +16,8 @@ make clean
 make re
 ```
 
+## Running the shell
+To run the shell in your terminal, run the following command in your **project root** directory:
+```
+./bin/ash
+```
