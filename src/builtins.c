@@ -1,18 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <time.h>
+/* Standard Headers and Custom Definitions */
+#include "ash.h"
 
-/* --- Source Headers */
-#include "../include/builtins.h"
-#include "../include/help.h"
-#include "../include/colors.h"
-
-#define ASH_FILES_BUFSIZE 16
+/* Custom Headers */
+#include "builtins.h"
+#include "help.h"
+#include "colors.h"
 
 char *builtin_str[] = {
     "cd",

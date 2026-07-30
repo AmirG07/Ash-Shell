@@ -1,21 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <time.h>
+/* --- Standard Headers and Custom Definitions --- */
+#include "ash.h"
 
 /* --- Custom Headers --- */
-#include "../include/builtins.h"
-#include "../include/help.h"
-#include "../include/colors.h"
-
-#define ASH_RL_BUFSIZE 1024
-#define ASH_TOKEN_BUFSIZE 64
-#define ASH_TOKEN_DELIM " \t\r\n\a"
+#include "builtins.h"
+#include "help.h"
+#include "colors.h"
 
 char *ash_read_line()
 {
@@ -124,13 +113,11 @@ int ash_execute(char **args)
     return ash_launch(args);
 }
 
-#define ASH_CWD_BUFSIZE 512
-
-char *ash_print_cwd(char *cwd)
+void ash_print_cwd()
 {
     int buffer_size = ASH_CWD_BUFSIZE;
 
-    cwd = malloc(sizeof(char) * ASH_CWD_BUFSIZE);
+    char *cwd = malloc(sizeof(char) * ASH_CWD_BUFSIZE);
 
     if(!cwd) {
 	perror("malloc");
@@ -155,7 +142,15 @@ char *ash_print_cwd(char *cwd)
 	}
     }
 
-    return cwd;
+    char *home = getenv("HOME");
+
+    if (strncmp(cwd, home, strlen(home)) == 0) {
+	printf("~%s\n", cwd + strlen(home));
+    }
+    else {
+	printf("%s\n", cwd);
+    }
+    free(cwd);
 }
 
 void ash_loop()
@@ -166,8 +161,7 @@ void ash_loop()
     int status;
 
     do {
-	cwd = ash_print_cwd(cwd);
-	printf("%s\n", cwd);
+	ash_print_cwd();
 	printf("> ");
 	line = ash_read_line();
 	args = ash_split_line(line);

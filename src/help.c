@@ -1,10 +1,10 @@
-#include <stdio.h>
-#include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
+/* --- Standard Headers and Custom Definitions --- */
+#include "ash.h"
 
-#include "../include/builtins.h"
-#include "../include/help.h"
+/* --- Custom Headers --- */
+#include "builtins.h"
+#include "help.h"
+#include "colors.h"
 
 builtin_help help_table[] = {
     {
@@ -17,7 +17,7 @@ builtin_help help_table[] = {
 	"ls",
 	"Shows the files in the current directory\n"
 	"----\n"
-	"Usage: ls [OPTIONS]\n\n"
+	"Usage: ls [-OPTIONS]\n\n"
 	"-Options:\n"
 	"\t-l: Lists the files with details\n"
 	"\t-h: Shows the manual of the command\n"
