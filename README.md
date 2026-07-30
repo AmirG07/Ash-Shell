@@ -15,6 +15,10 @@ Then, Build the files using **make** command:
 make clean
 make re
 ```
+After you made your changes to the project, you can compile it with the following command:
+```
+make
+```
 
 ## Running the shell
 To run the shell in your terminal, run the following command in your **project root** directory:
