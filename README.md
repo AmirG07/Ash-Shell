@@ -1,6 +1,7 @@
 # ASH - A Simple Shell
 
-ASH is a simple shell made by me(Amir Reza Gohari) to test my C programming skills.
+ASH is a simple shell made by me(Amir Reza Gohari) to test my Linux & C programming skills.
+This shell supports piping, builtin_commands and external programs; 
 
 ## Installation & Build
 To Install this shell on your computer, follow the instructions below.
