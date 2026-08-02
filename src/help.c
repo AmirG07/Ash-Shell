@@ -29,8 +29,13 @@ const int help_table_size = sizeof(help_table) / sizeof(help_table[0]);
 void print_help(char **args)
 {
     bool has_help = false;
+    char *func = args[0];
     for(int i = 0; i < help_table_size; i++) {
-	if(strcmp(args[0], help_table[i].name) == 0) {
+	if(strcmp(args[0], "help") == 0) {
+	    func = args[1];
+	}
+
+	if(strcmp(func, help_table[i].name) == 0) {
 	    printf("%s", help_table[i].help);
 	    has_help = true;
 	    break;
@@ -38,6 +43,6 @@ void print_help(char **args)
     }
 
     if(!has_help) {
-	fprintf(stderr, "ash-> no help description was found");
+	fprintf(stderr, "ash-> no help description was found\n");
     }
 }

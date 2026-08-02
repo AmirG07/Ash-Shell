@@ -6,23 +6,28 @@
 #include "help.h"
 #include "colors.h"
 
-char *builtin_str[] = {
-    "cd",
-    "ls",
-    "help",
-    "exit"
-};
-
-int (*builtin_func[]) (char **) = {
-    &ash_cd,
-    &ash_ls,
-    &ash_help,
-    &ash_exit
+Builtin builtin_funcs[] = {
+    {
+	"cd", 
+	ash_cd
+    },
+    {
+	"ls",
+	ash_ls
+    },
+    {
+	"help",
+	ash_help
+    },
+    {
+	"exit",
+	ash_exit
+    }
 };
 
 int ash_num_builtins()
 {
-    return sizeof(builtin_str) / sizeof(char*);
+    return sizeof(builtin_funcs) / sizeof(Builtin);
 }
 
 int ash_cd(char **args)
@@ -42,19 +47,77 @@ int ash_cd(char **args)
     return 1;
 }
 
-void print_dir(char **args, char **filenames, int count, int max_width)
+void merge(char **filenames, int l, int m, int r)
+{
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    char *L[n1]; 
+    char *R[n2];
+    
+    for(int i = 0; i < n1; i++) {
+	L[i] = filenames[l + i];
+    }
+    for(int j = 0; j < n2; j++) {
+	R[j] = filenames[m + 1 + j];
+    }
+
+    int i = 0, j = 0;
+    int k = l;
+    while(i < n1 && j < n2) {
+	if(strcasecmp(L[i], R[j]) <= 0) {
+	    filenames[k] = L[i];
+	    i++;
+	}
+	else {
+	    filenames[k] = R[j];
+	    j++;
+	}
+	k++;
+    }
+
+    while(i < n1) {
+	filenames[k] = L[i];
+	i++;
+	k++;
+    }
+
+    while(j < n2) {
+	filenames[k] = R[j];
+	j++;
+	k++;
+    }
+}
+
+void merge_sort(char **filenames, int l, int r)
+{
+    if(l < r) {
+	int m = (l + r) / 2;
+
+	merge_sort(filenames, l, m);
+	merge_sort(filenames, m + 1, r);
+
+	merge(filenames, l, m, r);
+    }
+}
+
+void print_dir(const char *dir_path, char **filenames, int count, bool show_long, int max_width)
 {
     for(int i = 0; i < count; i++) {
-	struct stat st;
-	
+	char full_path[1024];
+	snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, filenames[i]);
+
 	if(strcmp(filenames[i], ".") != 0 && strcmp(filenames[i], "..") != 0) {
-	    if(stat(filenames[i], &st) == 0) {
-		if(args[1] != NULL && (strchr(args[1], 'l') && args[1][0] == '-')) {
+	    if(show_long) {
+		struct stat st;
+
+		if(lstat(full_path, &st) == 0) {
 		    if (S_ISREG(st.st_mode))
 			printf("-");
 		    else if (S_ISDIR(st.st_mode))
 			printf("d");
 		    else if (S_ISLNK(st.st_mode))
+
 			printf("l");
 		    else if (S_ISCHR(st.st_mode))
 			printf("c");
@@ -73,9 +136,9 @@ void print_dir(char **args, char **filenames, int count, int max_width)
 		    printf((st.st_mode & S_IWGRP) ? "w" : "-");
 		    printf((st.st_mode & S_IXGRP) ? "x" : "-");
 
-		    printf((st.st_mode & S_IRGRP) ? "r" : "-");
-		    printf((st.st_mode & S_IWGRP) ? "w" : "-");
-		    printf((st.st_mode & S_IXGRP) ? "x" : "-");
+		    printf((st.st_mode & S_IROTH) ? "r" : "-");
+		    printf((st.st_mode & S_IWOTH) ? "w" : "-");
+		    printf((st.st_mode & S_IXOTH) ? "x" : "-");
 
 		    printf(ASH_GREEN " %-*s " ASH_RESET, max_width, filenames[i]);
 
@@ -83,15 +146,16 @@ void print_dir(char **args, char **filenames, int count, int max_width)
 		    char time_buffer[64];
 		    strftime(time_buffer, sizeof(time_buffer), "%b %d %H:%M", tm);
 		    printf(ASH_YELLOW " %s\n" ASH_RESET, time_buffer);
-
 		}
-		else {
-		    printf(ASH_GREEN "%s\n" ASH_RESET, filenames[i]);	
-		}	
+
+
 	    }
-	}   
+	    else {
+		printf(ASH_GREEN "%s\n" ASH_RESET, filenames[i]);	
+	    }	
+	}
 	free(filenames[i]);
-    }
+    }  
 }
 
 int ash_ls(char **args)
@@ -101,28 +165,52 @@ int ash_ls(char **args)
 	return 1;
     }
     
-    int buffer_size = ASH_FILES_BUFSIZE;
+    int normal_buffer_size = ASH_FILES_BUFSIZE;
+    int dot_buffer_size = ASH_FILES_BUFSIZE;
     int normal_count = 0, dot_count = 0;
-    char **normal_filenames = malloc(sizeof(char*) * buffer_size);
-    char **dot_filenames = malloc(sizeof(char*) * buffer_size);
+    char **normal_filenames = malloc(sizeof(char*) * normal_buffer_size);
+    char **dot_filenames = malloc(sizeof(char*) * dot_buffer_size);
     
     int max_width = 0;
-    struct dirent *de;
-    DIR *dr = opendir(".");
-
+    const char *dir_path = ".";
+    
+    bool show_long = false;
+    bool show_all = false;
+    for(int i = 1; args[i] != NULL; i++) {
+	if(args[i][0] == '-') {
+	    if(strchr(args[i], 'l'))
+		show_long = true;
+	    if(strchr(args[i], 'a'))
+		show_all = true;
+	}
+	else {
+	    dir_path = args[i];
+	}
+    }
+        
+    DIR *dr = opendir(dir_path);
     if(dr == NULL) {
 	perror("opendir");
-	exit(EXIT_FAILURE);
+	return 1;
     }
-
+    
+    struct dirent *de;
     while((de = readdir(dr)) != NULL) {
-	if(strlen((*de).d_name) > max_width)
+	if(strlen((*de).d_name) > max_width) {
 	    max_width = strlen((*de).d_name);
-	
-	if(normal_count == buffer_size)	    
-	    normal_filenames = realloc(normal_filenames, sizeof(char*) * (buffer_size * 2));
-	if(dot_count == buffer_size)   
-	    dot_filenames = realloc(dot_filenames, sizeof(char*) * (buffer_size * 2));
+	}
+
+	char full_path[1024];
+	snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, de->d_name);
+
+	if(normal_count == normal_buffer_size) {
+	    normal_buffer_size *= 2;
+	    normal_filenames = realloc(normal_filenames, sizeof(char*) * normal_buffer_size);
+	}
+	if(dot_count == dot_buffer_size) {
+	    dot_buffer_size *= 2;
+	    dot_filenames = realloc(dot_filenames, sizeof(char*) * dot_buffer_size);
+	}
 
 
 	if((*de).d_name[0] == '.')
@@ -130,13 +218,19 @@ int ash_ls(char **args)
 	else
 	    normal_filenames[normal_count++] = strdup((*de).d_name);    
     }
-    closedir(dr);
     
-    if(args[1] != NULL && strchr(args[1], 'a')) {
-	print_dir(args, dot_filenames, dot_count, max_width);
+    closedir(dr);
+   
+    
+    merge_sort(normal_filenames, 0, normal_count - 1);
+    merge_sort(dot_filenames, 0, dot_count - 1);
+
+
+    if(show_all) {
+	print_dir(dir_path, dot_filenames, dot_count, show_long, max_width);
 	
     }
-    print_dir(args, normal_filenames, normal_count, max_width);
+    print_dir(dir_path, normal_filenames, normal_count, show_long, max_width);
     
 
     free(normal_filenames);
@@ -147,15 +241,20 @@ int ash_ls(char **args)
 
 int ash_help(char **args)
 {
-    printf("Amir Reza Gohari's ASH\n");
-    printf("Type program names and arguments, and hit enter.\n");
-    printf("The following are built in:\n");
-
-    for (int i = 0; i < ash_num_builtins(); i++) {
-	printf("  %s\n", builtin_str[i]);
+    if(args[1] != NULL) {
+	print_help(args);
     }
+    else {
+	printf("Amir Reza Gohari's ASH\n");
+	printf("Type program names and arguments, and hit enter.\n");
+	printf("The following are built in:\n");
 
-    printf("Use the man command for information on other programs.\n");
+	for (int i = 0; i < ash_num_builtins(); i++) {
+	    printf("\t%s\n", builtin_funcs[i].name);
+	}
+
+	printf("Use the man command for information on other programs.\n");
+    }
     return 1;
 }
 
@@ -163,3 +262,5 @@ int ash_exit(char **args)
 {
     return 0;
 }
+
+

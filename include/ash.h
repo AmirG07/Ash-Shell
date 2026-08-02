@@ -12,16 +12,20 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <time.h>
+#include <fcntl.h>
 
 /* --- Definitions --- */
 
 // -- main.c --
 #define ASH_RL_BUFSIZE 1024
-#define ASH_TOKEN_BUFSIZE 64
-#define ASH_TOKEN_DELIM " \t\r\n\a"
 #define ASH_CWD_BUFSIZE 512
 
 // -- builtins.c --
 #define ASH_FILES_BUFSIZE 16
+
+// -- parser.c --
+#define ASH_TOKEN_BUFSIZE 64
+#define ASH_PIPE_BUFSIZE 8
+#define ASH_CMD_BUFSIZE 8
 
 #endif
