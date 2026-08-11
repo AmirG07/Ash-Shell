@@ -1,4 +1,9 @@
 # ASH - A Simple Shell
+    _        _       ____  _          _ _ 
+   / \   ___| |__   / ___|| |__   ___| | |
+  / _ \ / __| '_ \  \___ \| '_ \ / _ \ | |
+ / ___ \\__ \ | | |  ___) | | | |  __/ | |
+/_/   \_\___/_| |_| |____/|_| |_|\___|_|_|
 
 ASH is a simple shell made by me(Amir Reza Gohari) to test my Linux & C programming skills.
 This shell supports piping, builtin_commands and external programs; 
